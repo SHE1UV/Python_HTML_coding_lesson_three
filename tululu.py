@@ -14,27 +14,11 @@ logger = logging.getLogger()
 
 
 def fetch_books_id():
-    parser = argparse.ArgumentParser(
-        description='Скрипт для скачивания книг с сайта tululu.org'
-    )
-    parser.add_argument(
-        '-s',
-        '--start_id',
-        help='ID, с которого надо скачивать книги',
-        default=1,
-        type=int
-    )
-    parser.add_argument(
-        '-e',
-        '--end_id',
-        help='ID, до которого надо скачивать книги',
-        default=10,
-        type=int
-    )
+    parser = argparse.ArgumentParser(description='Скрипт для скачивания книг с сайта tululu.org')
+    parser.add_argument('-s', '--start_id', help='ID, с которого надо скачивать книги', default=1, type=int)
+    parser.add_argument('-e', '--end_id', help='ID, до которого надо скачивать книги', default=10, type=int)
     args = parser.parse_args()
-    start_id = args.start_id
-    end_id = args.end_id
-    return start_id, end_id
+    return args.start_id, args.end_id
 
 
 def check_for_redirect(response):
@@ -75,13 +59,7 @@ def parse_book_page(html, base_url):
                 for comment_tag in comments_tag]
     genre_tags = soup.find('span', class_='d_book').find_all("a")
     genres = [tag.text for tag in genre_tags]
-    return {
-        "title": book_title.strip(),
-        "author": book_author.strip(),
-        "image": image_url,
-        "comments": comments,
-        "genres": genres,
-    }
+    return {"title": book_title, "author": book_author, "image": image_url, "comments": comments, "genres": genres}
 
 
 def print_about_book(book):
@@ -111,7 +89,6 @@ def download_book(book_id):
             if not first_reconnection:
                 logger.warning('Connection is restored.')
 
-            return response
         except requests.exceptions.HTTPError:
             logger.warning(f"Redirect. The book {book_id} not found")
             break
@@ -129,15 +106,9 @@ def download_book(book_id):
 
 
 def main():
-    logging.basicConfig(
-        level=logging.INFO,
-        filename='error.log', 
-        filemode='w',
-    )
+    logging.basicConfig(level=logging.INFO, filename='error.log', filemode='w')
     start_id, end_id = fetch_books_id()
-    book_indexes = range(start_id, end_id + 1)
-    parsed_books = [download_book(book_id)
-                    for book_id in book_indexes]
+    parsed_books = [download_book(book_id) for book_id in range(start_id, end_id + 1)]
 
 
 if __name__ == "__main__":
