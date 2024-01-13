@@ -110,10 +110,10 @@ def main():
     start_id, end_id = fetch_book_ids()
 
     try:
-        parsed_books = [download_book(book_id) for book_id in range(start_id, end_id + 1)]
+        for book_id in range(start_id, end_id + 1):
+            download_book(book_id)
     except Exception as e:
         logger.exception("An unhandled exception occurred:")
-
 
 if __name__ == "__main__":
     main()
