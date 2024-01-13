@@ -99,13 +99,13 @@ def download_book(book_id):
             check_for_redirect(response)
             book = parse_book_page(response.text, response.url)
             book_title = book['title']
-            url_image = book['image']
+            image_url = book['image']
             filename = f'{book_id}. {book_title}'
             payload = {"id": book_id}
             download_url = f'https://tululu.org/txt.php'
             download_txt(download_url, payload, filename)
-            filename = unquote(urlsplit(url_image).path).split("/")[-1]
-            download_image(url_image, filename)
+            filename = unquote(urlsplit(image_url).path).split("/")[-1]
+            download_image(image_url, filename)
             print_about_book(book)
 
             if not first_reconnection:
@@ -134,7 +134,7 @@ def main():
         filename='error.log', 
         filemode='w',
     )
-    start_id, end_id = fetch_book_id()
+    start_id, end_id = fetch_books_id()
     book_indexes = range(start_id, end_id + 1)
     parsed_books = [download_book(book_id)
                     for book_id in book_indexes]
