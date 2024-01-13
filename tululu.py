@@ -13,7 +13,7 @@ from pathvalidate import sanitize_filename
 logger = logging.getLogger()
 
 
-def fetch_books_id():
+def fetch_book_ids():
     parser = argparse.ArgumentParser(description='Скрипт для скачивания книг с сайта tululu.org')
     parser.add_argument('-s', '--start_id', help='ID, с которого надо скачивать книги', default=1, type=int)
     parser.add_argument('-e', '--end_id', help='ID, до которого надо скачивать книги', default=10, type=int)
@@ -107,8 +107,12 @@ def download_book(book_id):
 
 def main():
     logging.basicConfig(level=logging.INFO, filename='error.log', filemode='w')
-    start_id, end_id = fetch_books_id()
-    parsed_books = [download_book(book_id) for book_id in range(start_id, end_id + 1)]
+    start_id, end_id = fetch_book_ids()
+
+    try:
+        parsed_books = [download_book(book_id) for book_id in range(start_id, end_id + 1)]
+    except Exception as e:
+        logger.exception("An unhandled exception occurred:")
 
 
 if __name__ == "__main__":
