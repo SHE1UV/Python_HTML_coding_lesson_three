@@ -160,3 +160,5 @@ bs4_tutorial.py
 
 # Git attributes file
 .gitattributes
+
+.parse_tululu_category.py
