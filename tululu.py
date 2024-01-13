@@ -13,7 +13,7 @@ from pathvalidate import sanitize_filename
 logger = logging.getLogger()
 
 
-def fetch_book_id():
+def fetch_books_id():
     parser = argparse.ArgumentParser(
         description='Скрипт для скачивания книг с сайта tululu.org'
     )
