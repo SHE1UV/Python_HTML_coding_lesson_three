@@ -29,24 +29,37 @@ def check_for_redirect(response):
 def download_txt(url, payload, filename, folder='books/'):
     os.makedirs(folder, exist_ok=True)
     filepath = os.path.join(folder, sanitize_filename(f"{filename}.txt"))
-    response = requests.get(url, params=payload)
-    response.raise_for_status()
-    check_for_redirect(response)
+    
+    try:
+        response = requests.get(url, params=payload)
+        response.raise_for_status()
+        check_for_redirect(response)
+    except requests.exceptions.HTTPError as http_err:
+        logger.error(f"Failed to download {filename}: {response.status_code} {response.reason}")
+        return None
+    
     with open(filepath, 'wb') as file:
         file.write(response.content)
+    
     return filepath
 
 
 def download_image(url, filename, folder='images/'):
     os.makedirs(folder, exist_ok=True)
     filepath = os.path.join(folder, sanitize_filename(f"{filename}"))
-    response = requests.get(url)
-    response.raise_for_status()
-    check_for_redirect(response)
+    
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        check_for_redirect(response)
+    except requests.exceptions.HTTPError as http_err:
+        logger.error(f"Failed to download {filename}: {response.status_code} {response.reason}")
+        return None
+    
     with open(filepath, 'wb') as file:
         file.write(response.content)
+    
     return filepath
-
 
 def parse_book_page(html, base_url):
     soup = BeautifulSoup(html, 'lxml')
@@ -73,15 +86,28 @@ def download_book(book_id):
         try:
             url = f"https://tululu.org/b{book_id}/"
             response = requests.get(url)
-            response.raise_for_status()
+            
+            try:
+                response.raise_for_status()
+            except requests.exceptions.HTTPError as http_err:
+                logger.warning(f"Redirect. The book {book_id} not found")
+                break
+            
             check_for_redirect(response)
             book = parse_book_page(response.text, response.url)
+            
+            if not book:
+                break
+            
             book_title = book['title']
             image_url = book['image']
             filename = f'{book_id}. {book_title}'
             payload = {"id": book_id}
             download_url = f'https://tululu.org/txt.php'
-            download_txt(download_url, payload, filename)
+            
+            if not download_txt(download_url, payload, filename):
+                break
+            
             filename = unquote(urlsplit(image_url).path).split("/")[-1]
             download_image(image_url, filename)
             print_about_book(book)
@@ -89,9 +115,6 @@ def download_book(book_id):
             if not first_reconnection:
                 logger.warning('Connection is restored.')
 
-        except requests.exceptions.HTTPError:
-            logger.warning(f"Redirect. The book {book_id} not found")
-            break
         except requests.exceptions.ConnectionError as connect_err:
             if first_reconnection:
                 logger.warning('Connection is down!')
@@ -112,6 +135,8 @@ def main():
     try:
         for book_id in range(start_id, end_id + 1):
             download_book(book_id)
+    except KeyboardInterrupt:
+        logger.info("Script execution interrupted by the user.")
     except Exception as e:
         logger.exception("An unhandled exception occurred:")
 
