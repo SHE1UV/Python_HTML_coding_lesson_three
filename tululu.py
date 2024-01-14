@@ -1,133 +1,91 @@
 import os
-import argparse
 import sys
 import logging
+import argparse
 from time import sleep
-
 from urllib.parse import urljoin, urlsplit, unquote
 import requests
 from bs4 import BeautifulSoup
 from pathvalidate import sanitize_filename
 
-
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 def fetch_book_ids():
-    try:
-        parser = argparse.ArgumentParser(description='Скрипт для скачивания книг с сайта tululu.org')
-        parser.add_argument('-s', '--start_id', help='ID, с которого надо скачивать книги', default=1, type=int)
-        parser.add_argument('-e', '--end_id', help='ID, до которого надо скачивать книги', default=10, type=int)
-        args = parser.parse_args()
-        return args.start_id, args.end_id
-    except argparse.ArgumentError as e:
-        logger.error(f"Error parsing command line arguments: {e}")
-        raise
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-s', default=1, type=int)
+    parser.add_argument('-e', default=10, type=int)
+    return parser.parse_args()
 
 
-def check_for_redirect(response):
-    if response.history:
-        raise requests.exceptions.HTTPError
+def parse_book_page(html, url):
+    soup = BeautifulSoup(html, 'lxml')
+
+    return {
+        "title": title,
+        "author": author,
+        "image_url": image_url,
+        "comments": comments,
+        "genres": genres
+    }
 
 
-def download_txt(url, payload, filename, folder='books/'):
-    try:
-        os.makedirs(folder, exist_ok=True)
-        filepath = os.path.join(folder, sanitize_filename(f"{filename}.txt"))
-        response = requests.get(url, params=payload)
-        response.raise_for_status()
-        check_for_redirect(response)
-        with open(filepath, 'wb') as file:
-            file.write(response.content)
-        return filepath
-    except (requests.exceptions.HTTPError, requests.exceptions.ConnectionError, OSError) as e:
-        logger.error(f"Error downloading {filename} from {url}: {e}")
-        raise
+def download_txt(url, payload, filename, folder):
+    filepath = os.path.join(folder, sanitize_filename(f"{filename}.txt"))
+    with open(filepath, 'wb') as f:
+        f.write(requests.get(url, params=payload).content)
 
 
-def download_image(url, filename, folder='images/'):
-    try:
-        os.makedirs(folder, exist_ok=True)
-        filepath = os.path.join(folder, sanitize_filename(f"{filename}"))
-        response = requests.get(url)
-        response.raise_for_status()
-        check_for_redirect(response)
-        with open(filepath, 'wb') as file:
-            file.write(response.content)
-        return filepath
-    except (requests.exceptions.HTTPError, requests.exceptions.ConnectionError, OSError) as e:
-        logger.error(f"Error downloading image {filename} from {url}: {e}")
-        raise
-        
-
-def parse_book_page(html, base_url):
-    try:
-        soup = BeautifulSoup(html, 'lxml')
-        title_tag = soup.find('h1')
-        book_title, book_author = title_tag.text.split("::")
-        image_tag = soup.find('div', class_='bookimage')
-        image_url = urljoin(base_url, image_tag.find('img')['src'])
-        comments_tag = soup.find_all('div', class_='texts')
-        comments = [comment_tag.find('span', class_='black').text for comment_tag in comments_tag]
-        genre_tags = soup.find('span', class_='d_book').find_all("a")
-        genres = [tag.text for tag in genre_tags]
-        return {"title": book_title, "author": book_author, "image": image_url, "comments": comments, "genres": genres}
-    except (AttributeError, ValueError) as e:
-        logger.error(f"Error parsing book page: {e}")
-        raise
+def download_image(url, filename, folder):
+    filepath = os.path.join(folder, sanitize_filename(f"{filename}"))
+    with open(filepath, 'wb') as f:
+        f.write(requests.get(url).content)
 
 
-def print_about_book(book):
-    print("Заголовок:", book['title'])
-    print(book['comments'])
-
-
-def download_book(book_id):
-    first_reconnection = True
-        while True:
-            try:
-                url = f"https://tululu.org/b{book_id}/"
-                response = requests.get(url)
-                response.raise_for_status()
-                check_for_redirect(response)
-                book = parse_book_page(response.text, response.url)
-                book_title = book['title']
-                image_url = book['image']
-                filename = f'{book_id}. {book_title}'
-                payload = {"id": book_id}
-                download_url = f'https://tululu.org/txt.php'
-                download_txt(download_url, payload, filename)
-                filename = unquote(urlsplit(image_url).path).split("/")[-1]
-                download_image(image_url, filename)
-                print_about_book(book)
-    
-                if not first_reconnection:
-                    logger.warning('Connection is restored.')
-    
-            except requests.exceptions.HTTPError as e:
-                logger.warning(f"Redirect. The book {book_id} not found: {e}")
-                break
-            except requests.exceptions.ConnectionError as connect_err:
-                if first_reconnection:
-                    logger.warning('Connection is down!')
-                    logger.warning(connect_err)
-                    logger.warning('Retry in 5 seconds')
-                    sleep(5)
-                    first_reconnection = False
-                else:
-                    logger.warning('Connection is still down!')
-                    logger.warning('Retry in 15 seconds')
-                    sleep(15)
+def print_book_info(book):
+    print(book)
 
 
 def main():
-    logging.basicConfig(level=logging.INFO, filename='error.log', filemode='w')
+    logging.basicConfig(filename='app.log', level=logging.INFO)
+
     try:
         start_id, end_id = fetch_book_ids()
-        for book_id in range(start_id, end_id + 1):
-            download_book(book_id)
+        
+        for book_id in range(start_id, end_id+1):
+            url = f"https://tululu.org/b{book_id}/"
+            resp = requests.get(url)
+
+            if resp.history:
+                logger.warning(f"Book {book_id} not found - got redirect")
+                continue
+
+            book = parse_book_page(resp.text, url)
+
+            download_txt(
+                "https://tululu.org/txt.php",
+                {"id": book_id}, 
+                f"{book_id}. {book['title']}",
+                "books"
+            )
+
+            download_image(
+                book['image_url'],
+                unquote(urlsplit(book['image_url']).path).split("/")[-1],
+                "images"
+            )
+
+            print_book_info(book)
+
+    except requests.RequestException as e:
+        logger.error("Ошибка запроса: " + str(e))
+
+    except (OSError, FileNotFoundError) as e:
+        logger.error("Ошибка файловой системы: " + str(e)) 
+
     except Exception as e:
-        logger.exception("An unhandled exception occurred")
+        logger.exception("Непредвиденная ошибка:")
+        raise e
 
 
 if __name__ == "__main__":
