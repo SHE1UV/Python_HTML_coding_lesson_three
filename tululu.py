@@ -51,26 +51,27 @@ def main():
 
     try:
         start_id, end_id = fetch_book_ids()
-        
-        for book_id in range(start_id, end_id+1):
-            url = f"https://tululu.org/b{book_id}/"
-            resp = requests.get(url)
 
-            if resp.history:
-                logger.warning(f"Book {book_id} not found - got redirect")
+        for book_id in range(start_id, end_id+1):
+            
+            url = f"https://tululu.org/b{book_id}/"
+            response = requests.get(url)
+
+            if response.history:
+                logger.warning(f"Книга {book_id} не найдена - редирект")
                 continue
 
-            book = parse_book_page(resp.text, url)
+            book = parse_book_page(response.text, url)
 
             download_txt(
                 "https://tululu.org/txt.php",
-                {"id": book_id}, 
+                {"id": book_id},
                 f"{book_id}. {book['title']}",
                 "books"
             )
 
             download_image(
-                book['image_url'],
+                book['image_url'], 
                 unquote(urlsplit(book['image_url']).path).split("/")[-1],
                 "images"
             )
@@ -78,14 +79,13 @@ def main():
             print_book_info(book)
 
     except requests.RequestException as e:
-        logger.error("Ошибка запроса: " + str(e))
+        logger.error(f"Ошибка запроса: {e}")
+        
+    except FileNotFoundError as e:
+        logger.error(f"Не найден файл: {e}")
 
-    except (OSError, FileNotFoundError) as e:
-        logger.error("Ошибка файловой системы: " + str(e)) 
-
-    except Exception as e:
-        logger.exception("Непредвиденная ошибка:")
-        raise e
+    except OSError as e:
+        logger.error(f"Ошибка файловой системы: {e}")
 
 
 if __name__ == "__main__":
