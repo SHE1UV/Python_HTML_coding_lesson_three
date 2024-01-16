@@ -59,7 +59,7 @@ def download_image(url, dest_folder, folder='images/'):
 def main():
     parser = argparse.ArgumentParser(description='Программа получает информацию по книгам с сайта http://tululu.org, а также скачивает их текст и картинку')
     parser.add_argument("-s", "--start_id", type=int, help="Начальная точка скачивания книг", default=1)
-    parser.add_argument("-e","--end_id", type=int, help="Конечная точка скачивания книг", default=10)
+    parser.add_argument("-e", "--end_id", type=int, help="Конечная точка скачивания книг", default=10)
     parser.add_argument("--dest_folder", type=str, help="путь к каталогу с результатами парсинга: картинкам, книгам, JSON", default='result')
     args = parser.parse_args()
 
