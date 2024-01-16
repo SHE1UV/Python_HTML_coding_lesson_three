@@ -18,7 +18,7 @@ pip install -r requirements.txt
 ```
 ## Запуск
 ```
-python tululu.py --start_id 1 --end_id 5 --dest_folder my_books
+python tululu.py --start_id 1 --end_id 10 --dest_folder my_books
 ```
 Можно использовать сокращенную запись:
 ```
